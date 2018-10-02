@@ -1,0 +1,204 @@
+\documentclass[14pt]{article}%
+    \usepackage{amsfonts}
+    \usepackage{comment}
+    \usepackage{amsmath}
+    
+    \begin{document}
+    
+    \title{Homework 1}
+    \author{Aaron Goodfellow}
+    \date{\today}
+    \maketitle
+    
+    \section{Census Income}
+    <<echo=FALSE>>=
+    census_data <- read.csv('https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data', col.names = c('age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital', 'occupation', 'relationship', 'race', 'sex', 'cgain', 'closs', 'hpw', 'country', 'salary'))
+    @
+    Data Visualization is done via R - the data is read as a csv directly from the website\\
+    <<>>=
+    # A quick summary of relevant, non-binary 
+    # variables
+    census_frame <- census_data
+    census_frame$education.num <- NULL
+    census_frame$marital <- NULL
+    census_frame$fnlwgt <- NULL
+    census_frame$relationship <- NULL
+    census_frame$sex <- NULL
+    census_frame$cgain <- NULL
+    census_frame$closs <- NULL
+    plot(head(census_frame, 500))
+    @
+    The above plot shows a scatter plot matrix of the first 500 points of data in this set. One interesting relationship to be seen off the bat is the one between age and hourse per week worked. It seems there is a large concentration of young to middle aged people working 40 hours a week. Let's observe the frequencies of both age and hours-per-week in histograms, and then look at them ploted together in a smooth scatterplot
+    
+    <<>>=
+    # Histogram of age
+    hist(census_data$age)
+    @
+    A frequency histogram of the ages of people surveyed. It's a standard distribution, skewed right slightly. This isn't very surprising - I think most people would expect there to be more 40 year olds than 80 year olds... 
+    <<>>=
+    # Histogram of hpw
+    hist(census_data$hpw)
+    @
+    This is an interesting histogram - apparently the huge majority of people work 40 hours per week. This is pretty standard across the United States for full-time employees, so I guess it's not too surprising.
+    <<>>=
+    # Relationship between age and hpw
+    scatter.smooth(census_data$hpw ~ census_data$age, col='lightblue',)
+    @
+    As we can see from the above data, the average working time for a majority of people is around 40 hours a week. It tapers off slightly at the end of one's life, but not by much, surprisingly. Also, I find that presumably 18 year olds are starting at almost 40 hours per week themselves! I would have expected a more standard distribution.
+    <<>>=
+    # Plot of age vs education
+    plot(census_data$age ~ census_data$education)
+    @
+    I threw this plot in, because I thought it was fairly interesting. I would assume that as one gets higher and higher degrees, the median age would tend to increase, but that doesn't seem to exactly be the case. It's important to remember though, this data isn't showing the age at which people graduated, merely the age of the people now and what sort of degree those people have
+    
+    \section{Multivariate Normal Distributions}
+    \subsection*{a)}
+    This problem requires 100 three-dimensional vectors from a normal
+    distribution with a mean vector of [1, 2, 1] and a covariance matrix
+    of the following form:\\
+    \[
+    \begin{bmatrix}
+        5 & 0.8 & -0.3 \\ 
+        0.8 & 3 & 0.6\\ 
+        -0.3 & 0.6 & 4
+    \end{bmatrix}
+    \]
+    To generate data meeting these requirements I used the following code
+    snippet:\\
+    <<>>=
+    library("MASS", lib.loc="/Library/Frameworks/R.framework/Versions/3.5/Resources/library")
+    # Create a covariance matrix
+    covariance <- matrix( 
+            c(5, 0.8, -0.3, 0.8, 3, 0.6, -0.3, 0.6, 4), 
+            nrow=3, 
+            ncol=3)
+ 
+    # Create all 100 vectors from the given mean and covariance matrix
+    norm_dist_sample <- mvrnorm(100, c(1, 2, 1), covariance)
+    
+    # I then put those vectors into a dataframe so they would be easier to work with
+    df <- data.frame(norm_dist_sample)
+    
+    # Here are the first five entries as an example:
+    head(df, 5)
+ 
+    @
+    \subsection*{b)}
+    R is really great when it comes to making scatter plots that show the relationship between different elements. All we need to do is call the plot function on the dataframe from above, and R is smart enough to take care of everything else.\\
+    <<>>=
+    # Plot the relationships between x1, x2, and x3 as a scatter plot
+    plot(df, col='darkgreen')
+    @
+    \subsection*{c)}
+    Again, I rely on R's builtin libraries to calculate both the Euclidean distance from each point to another, and to compute the Mahalanobis distance from the mean:\\
+    <<>>=
+    # Calculate the euclidean distances point to point
+    stats::dist(head(df, 5), method = "euclidean")
+    
+    # Calculate the Mahalanobis distances from point to mean
+    mahalanobis(head(df, 5), c(1, 2, 1), covariance)
+    @
+    
+    \section{Principal Component Analysis}
+    Given data of the following form:\\
+    <<echo=FALSE>>=
+    five_dim_matrix <- matrix( 
++             c(5700, 12.8, 2500, 270, 25000, 1000, 10.9, 600, 10, 10000, 3400, 8.8, 1000, 10, 9000, 3800, 13.6, 1700, 140, 25000, 4000, 12.8, 1600, 140, 25000, 8200, 8.3, 2600, 60, 12000, 1200, 11.4, 400, 10, 16000, 9100, 11.5, 3300, 60, 14000, 9900, 12.5, 3400, 180, 18000, 9600, 13.7, 3600, 390, 25000, 9600, 9.6, 3300, 80, 12000, 9400, 11.4, 4000, 13000), 
+             nrow=12, 
+             ncol=5,
+             byrow=TRUE)
+    five_dim_matrix
+    @
+    We are to reduce this five dimensional matrix to two dimensions using PCA. I will also list the eigenvalues and eigenvectors obtained via PCA. \\
+    Using a builtin R funciton, prcomp, we can pass our matrix, standardize the values, and git a 5x5 matrix of the eigenvectors:
+    <<>>=
+    # Save the eigenvectors as a matrix called pca_five. 
+    # Center and standardize the values
+    pca_five <- prcomp(five_dim_matrix,
+                  center = TRUE,
+                  scale. = TRUE) 
+    pca_five
+    
+    # Display eigenvalues
+    pca_five$sdev
+    
+    # Manipulate data to show a percentage variance graph:
+    pca_five.percentage <- 
+      round(pca_five$sdev^2/sum(pca_five$sdev^2)*100, 1)
+    
+    # Scree plot with the relative variances for each principle component:
+    barplot(pca_five.percentage, main='Scree Plot', 
+            xlab='Principle Component', ylab='Percent Variation')
+    @
+    As we can see from the above plot, the first and second principle components are the ones that most influence this dataset. Plotting a two dimensional scatter plot with just this data will yeild:\\
+    <<>>=
+    plot(pca_five$x[,1], pca_five$x[,2], main='Reduced Representation',
+         xlab= paste('PC1 - ', pca_five.percentage[1], '%'), 
+         ylab = paste('PC2 - ', pca_five.percentage[2], '%'))
+    @
+    Although the variables in this instance are not labeled, for the above graph, I've labeled the axes as PC1 and PC2 as primary component 1 and 2 respectivley, along with the percentage variance. 
+    \section{Breast Cancer Dataset}
+    The following matrix shows the head of the data which is being read directly from the url with R's 'read.csv' function. I've also included a preliminary scatterplot matrix (omitting codeNum and class) to see if any relationships jump out right away:
+    <<echo=FALSE>>=
+    cancer_data <- read.csv('https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data', col.names=c('codeNum', 'clump', 'cellSize', 'cellShape', 'adhesion', 'seCellSize', 'bNuclei', 'chromatin', 'nNuclei', 'mitoses', 'class'))
+    head(cancer_data)
+    cancer_data.numeric <- cancer_data
+    cancer_data.numeric$class <- NULL
+    cancer_data.numeric$codeNum <- NULL
+    plot(cancer_data.numeric)
+    @
+    Other than a linear relationship between cell shape and cell size, I don't see any other scatterplots that immediatley jump out at me. Continuing on to perform principle component analysis of this data, we run the following code:\\
+    <<>>=
+    # Simply remove rows with '?' in them
+    cancer_data.numeric$bNuclei <- as.numeric(cancer_data.numeric$bNuclei)
+    # Perform pca on the data
+    cancer_pca <- prcomp(cancer_data.numeric,
+                  center = TRUE,
+                  scale. = TRUE) 
+    # Prints out eigenvalues and eigenvectors
+    cancer_pca
+    
+    # Manipulate data to show a percentage variance graph:
+    cancer_pca.percentage <- 
+      round(cancer_pca$sdev^2/sum(cancer_pca$sdev^2)*100, 1)
+    
+    # Scree plot with the relative variances for each principle component:
+    barplot(cancer_pca.percentage, main='Scree Plot', 
+            xlab='Principle Component', ylab='Percent Variation')
+    
+    # Add class info back into the data
+    cancer_pca$class <- cancer_data$class
+    
+    # Plot data with color-coded groups
+    plot(cancer_pca$x[,1], cancer_pca$x[,2], main='Reduced Representation',
+         xlab= paste('PC1 - ', cancer_pca.percentage[1], '%'), 
+         ylab = paste('PC2 - ', cancer_pca.percentage[2], '%'),
+         col=cancer_pca$class)
+    legend('topleft', legend = c('benign', 'malignant'), 
+           col = c('blue', 'red'), lty = c(1, 2, 1))
+    
+    @
+    \section{t-SNE Visualization}
+    <<>>=
+    library("Rtsne", lib.loc="/Library/Frameworks/R.framework/Versions/3.5/Resources/library")
+    @
+    
+     <<>>=
+    # Plot data with color-coded groups
+    # tSNE perplexity 10
+    plot(Rtsne(cancer_data.numeric, perplexity=10, 
+               check_duplicates = FALSE)$Y, col=cancer_data$class)
+    legend('bottomright', legend = c('benign', 'malignant'), 
+           col = c('blue', 'red'), lty = c(1, 2, 1))
+    
+    # Plot data with color-coded groups
+    # tSNE perplexity 50
+    plot(Rtsne(cancer_data.numeric, perplexity=50, 
+               check_duplicates = FALSE)$Y, col=cancer_data$class)
+    legend('topleft', legend = c('benign', 'malignant'), 
+           col = c('blue', 'red'), lty = c(1, 2, 1))
+    
+    @
+    These results are both so different from each other, and so different from the PCA results obtained in problem number 4 that I'm slightly concerned I'm doing something incorrectly! However, in all three examples, you can see that there are two clear groups - that malignant and benign tumors are clearly differentiable from each other.
+    
+\end{document} 
